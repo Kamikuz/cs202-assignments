@@ -21,7 +21,7 @@ libraries. You can create the environment as follows:
 
 1. Open a terminal with Conda support. On Windows, launch "Anaconda
    Prompt"; on Linux or MacOS, launch a regular terminal.
-2. To create the environment, type: `conda -n cs202 python=3.10`
+2. To create the environment, type: `conda create -n cs202 python=3.10`
 3. To activate the environment, type `conda activate cs202`. The
    prompt's prefix should change from `(base)` to `(cs202)`.
 
@@ -141,3 +141,12 @@ you submit your assignment solution on Blackboard, you should upload
 *only* the `compiler.py` file. Please do not change any other files; I
 won't have access to changes you make to other files when grading your
 assignments.
+
+## Useful Tips
+
+To install the CS202 support code *inside* a Jupyter notebook, put the
+following code in a cell and run it:
+
+```
+!pip install git+https://github.com/jnear/cs202-assignments
+```
