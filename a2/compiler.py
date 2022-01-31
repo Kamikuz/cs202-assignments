@@ -12,15 +12,15 @@ gensym_num = 0
 
 
 def gensym(x):
-    """
-    Constructs a new variable name guaranteed to be unique.
-    :param x: A "base" variable name (e.g. "x")
-    :return: A unique variable name (e.g. "x_1")
-    """
-
-    global gensym_num
-    gensym_num = gensym_num + 1
-    return f'{x}_{gensym_num}'
+  """
+  Constructs a new variable name guaranteed to be unique.
+  :param x: A "base" variable name (e.g. "x")
+  :return: A unique variable name (e.g. "x_1")
+  """
+  
+  global gensym_num
+  gensym_num = gensym_num + 1
+  return f'{x}_{gensym_num}'
 
 
 ##################################################
@@ -28,125 +28,156 @@ def gensym(x):
 ##################################################
 
 def rco(prog: Module) -> Module:
-    """
-    Removes complex operands. After this pass, the arguments to operators (unary and binary
-    operators, and function calls like "print") will be atomic.
-    :param prog: An Lvar program
-    :return: An Lvar program with atomic operator arguments.
-    """
+  """
+  Removes complex operands. After this pass, the arguments to operators (unary and binary
+  operators, and function calls like "print") will be atomic.
+  :param prog: An Lvar program
+  :return: An Lvar program with atomic operator arguments.
+  """
+  
+  def rco_statms(statms: List[stmt]) -> List[stmt]:
+    new_statements = []
+    for s in statms:
+      bindings = {}
+      # call rco_exp based on the type of s
+      # e.g. rco_exp(e, bindings, False)
+      # add assignment atatsmnets to new_statements base on the bindings
+      # add a new version of the original statment s to new_statments
+      pass
+  
+  def rco_exp(e: expr, bindings: Dict[str, expr], atomic: bool) -> expr:
+    match e:
+      case Constant(i):
+        return Constant(i)
+      case BinOp(e1, Add(), e2):
+        new_e1 = rco_exp(e1, bindings, True)
+        new_e2 = rco_exp(e2, bindings, True)
+        
+        if atomic:
+          # create new tmp varibale
+          pass
+        else:
+          # return the new binop expression
+          return BinOp(new_e1, Add(), new_e2)
+  
+  new_statements = rco_statms(prog.body)
+  return Module(new_statements)
 
-    pass
 
 ##################################################
 # select-instructions
 ##################################################
 
 def select_instructions(prog: Module) -> x86.Program:
-    """
-    Transforms a Lvar program into a pseudo-x86 assembly program.
-    :param prog: a Lvar program
-    :return: a pseudo-x86 program
-    """
+  """
+  Transforms a Lvar program into a pseudo-x86 assembly program.
+  :param prog: a Lvar program
+  :return: a pseudo-x86 program
+  """
+  
+  pass
 
-    pass
 
 ##################################################
 # assign-homes
 ##################################################
 
 def assign_homes(program: x86.Program) -> Tuple[x86.Program, int]:
-    """
-    Assigns homes to variables in the input program. Allocates a stack location for each
-    variable in the program.
-    :param program: An x86 program.
-    :return: A Tuple. The first element is an x86 program (with no variable references).
-    The second element is the number of bytes needed in stack locations.
-    """
+  """
+  Assigns homes to variables in the input program. Allocates a stack location for each
+  variable in the program.
+  :param program: An x86 program.
+  :return: A Tuple. The first element is an x86 program (with no variable references).
+  The second element is the number of bytes needed in stack locations.
+  """
+  
+  pass
 
-    pass
 
 ##################################################
 # patch-instructions
 ##################################################
 
 def patch_instructions(inputs: Tuple[x86.Program, int]) -> Tuple[x86.Program, int]:
-    """
-    Patches instructions with two memory location inputs, using %rax as a temporary location.
-    :param inputs: A Tuple. The first element is an x86 program. The second element is the
-    stack space in bytes.
-    :return: A Tuple. The first element is the patched x86 program. The second element is
-    the stack space in bytes.
-    """
+  """
+  Patches instructions with two memory location inputs, using %rax as a temporary location.
+  :param inputs: A Tuple. The first element is an x86 program. The second element is the
+  stack space in bytes.
+  :return: A Tuple. The first element is the patched x86 program. The second element is
+  the stack space in bytes.
+  """
+  
+  pass
 
-    pass
 
 ##################################################
 # print-x86
 ##################################################
 
 def print_x86(inputs: Tuple[x86.Program, int]) -> str:
-    """
-    Prints an x86 program to a string.
-    :param inputs: A Tuple. The first element is the x86 program. The second element
-    is the stack space in bytes.
-    :return: A string, ready for gcc.
-    """
+  """
+  Prints an x86 program to a string.
+  :param inputs: A Tuple. The first element is the x86 program. The second element
+  is the stack space in bytes.
+  :return: A string, ready for gcc.
+  """
+  
+  pass
 
-    pass
 
 ##################################################
 # Compiler definition
 ##################################################
 
 compiler_passes = {
-    'remove complex opera*': rco,
-    'select instructions': select_instructions,
-    'assign homes': assign_homes,
-    'patch instructions': patch_instructions,
-    'print x86': print_x86
+  'remove complex opera*': rco,
+  'select instructions': select_instructions,
+  'assign homes': assign_homes,
+  'patch instructions': patch_instructions,
+  'print x86': print_x86
 }
 
 
 def run_compiler(s, logging=False):
-    current_program = parse(s)
-
+  current_program = parse(s)
+  
+  if logging == True:
+    print()
+    print('==================================================')
+    print(' Input program')
+    print('==================================================')
+    print()
+    print(print_ast(current_program))
+  
+  for pass_name, pass_fn in compiler_passes.items():
+    current_program = pass_fn(current_program)
+    
     if logging == True:
-        print()
-        print('==================================================')
-        print(' Input program')
-        print('==================================================')
-        print()
-        print(print_ast(current_program))
-
-    for pass_name, pass_fn in compiler_passes.items():
-        current_program = pass_fn(current_program)
-
-        if logging == True:
-            print()
-            print('==================================================')
-            print(f' Output of pass: {pass_name}')
-            print('==================================================')
-            print()
-            print(print_ast(current_program))
-
-    return current_program
+      print()
+      print('==================================================')
+      print(f' Output of pass: {pass_name}')
+      print('==================================================')
+      print()
+      print(print_ast(current_program))
+  
+  return current_program
 
 
 if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print('Usage: python compiler.py <source filename>')
-    else:
-        file_name = sys.argv[1]
-        with open(file_name) as f:
-            print(f'Compiling program {file_name}...')
-
-            try:
-                program = f.read()
-                x86_program = run_compiler(program, logging=True)
-
-                with open(file_name + '.s', 'w') as output_file:
-                    output_file.write(x86_program)
-
-            except:
-                print('Error during compilation! **************************************************')
-                traceback.print_exception(*sys.exc_info())
+  if len(sys.argv) != 2:
+    print('Usage: python compiler.py <source filename>')
+  else:
+    file_name = sys.argv[1]
+    with open(file_name) as f:
+      print(f'Compiling program {file_name}...')
+      
+      try:
+        program = f.read()
+        x86_program = run_compiler(program, logging=True)
+        
+        with open(file_name + '.s', 'w') as output_file:
+          output_file.write(x86_program)
+      
+      except:
+        print('Error during compilation! **************************************************')
+        traceback.print_exception(*sys.exc_info())
