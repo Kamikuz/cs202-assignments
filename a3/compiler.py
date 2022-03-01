@@ -240,8 +240,8 @@ class InterferenceGraph:
         return 'InterferenceGraph{\n ' + ',\n '.join(strings) + '\n}'
 
 
-def build_interference(inputs: Tuple[x86.Program, Dict[str, List[Set[x86.Var]]]]) -> Tuple[x86.Program,
-                                                                                           InterferenceGraph]:
+def build_interference(inputs: Tuple[x86.Program, Dict[str, List[Set[x86.Var]]]]) -> Tuple[
+    x86.Program, InterferenceGraph]:
     """
     Build the interference graph.
     :inputs: A Tuple. The first element is a pseudo-x86 program. The
@@ -307,47 +307,42 @@ def allocate_registers(inputs: Tuple[x86.Program, InterferenceGraph]) -> Tuple[x
     prog, interference_graph = inputs
     
     # 1. Color the interference graph, to obtain mapping from vars -> colors
-    def color_graph(vars: List[x86.Var], graph: InterferenceGraph) -> Coloring:
+    def color_graph(_vars: List[x86.Var], graph: InterferenceGraph) -> Coloring:
         # maps each variable to its saturation set
-        saturation_sets: Dict[x86.Var, Set[Color]] = {x: set() for x in vars}
-        
-        coloring: Coloring = {}
-        # Do until all vars have a color:
-        while vars:
-            #   1. Pick var x with the largest saturation set (breaking ties randomly / in any order)
-            x = max(vars, key=lambda v: (len(saturation_sets[v])))
-            vars.remove(x)
-            #   2. Assign x the lowest color c not in x's saturation set
-            color_chosen = next(i for i in itertools.count() if i not in saturation_sets[x])
-            coloring[x] = color_chosen
-            #   3. Add c to the saturation sets of x's neighbors
-            for y in graph.neighbors(x):
-                saturation_sets[y].add(color_chosen)
-        
+        saturation_sets: Dict[x86.Var, Set[Color]] = {x: set() for x in _vars}
         # create a coloring
-        return coloring
+        coloring_map: Coloring = {}
+        # Do until all vars have a color:
+        while _vars:
+            #   1. Pick var x with the largest saturation set (breaking ties randomly / in any order)
+            x = max(_vars, key=lambda v: (len(saturation_sets[v])))
+            #   2. Assign x the lowest color c not in x's saturation set
+            c = next(i for i in itertools.count() if i not in saturation_sets[x])
+            coloring_map[x] = c
+            #   3. Add c to the saturation sets of x's neighbors
+            for neighbor in graph.neighbors(x):
+                saturation_sets[neighbor].add(c)
+            _vars.remove(x)
+        return coloring_map
     
     # 2. Build mapping from colors -> locs, using registers when possible and stack locations when you run out
-    graph_vars = list(interference_graph.graph.keys())
-    coloring: Coloring = color_graph(graph_vars, interference_graph)
+    graph_vars = interference_graph.graph.keys()
+    coloring: Coloring = color_graph(list(graph_vars), interference_graph)
     available_registers = constants.callee_saved_registers + constants.caller_saved_registers
     color_map: Dict[Color, x86.Arg] = {}
     stack_locations_used = 0
-    
     for color in coloring.values():
         # use a register if one is available
         # otherwise generate a new stack location and use that
-        if color in available_registers:
-            color_map[color] = color
+        if len(available_registers) > 0:
+            color_map[color] = x86.Reg(available_registers.pop())
         else:
-            color_map[color] = x86.Deref('rbp', -(stack_locations_used * 8))
             stack_locations_used += 1
+            stack_location = x86.Deref('rbp', -(stack_locations_used * 8))
+            color_map[color] = stack_location
     
     # 3. Compose the mapping from (1) and (2) to obtain homes: a mapping form vars -> locs
-    homes = {}
-    for var in coloring:
-        color_for_this_var = coloring[var]
-        homes[var] = color_map[color_for_this_var]
+    homes = {var: color_map[color] for var, color in coloring.items()}
     
     # 4. Use the logic form assign-homes in A2 to replace variables with their locations using the homes created in (3)
     def align(num_bytes: int) -> int:
@@ -358,13 +353,13 @@ def allocate_registers(inputs: Tuple[x86.Program, InterferenceGraph]) -> Tuple[x
     
     def ah_arg(a: x86.Arg) -> x86.Arg:
         match a:
-            case x86.Immediate(i):
+            case x86.Immediate(_):
                 return a
-            case x86.Reg(r):
+            case x86.Reg(_):
                 return a
             case x86.Var(x):
-                if x in homes:
-                    return homes[x]
+                if a in homes:
+                    return homes[a]
                 else:
                     return x86.Reg('rdx')
             case _:
@@ -385,7 +380,7 @@ def allocate_registers(inputs: Tuple[x86.Program, InterferenceGraph]) -> Tuple[x
     
     blocks = prog.blocks
     new_blocks = {label: ah_block(block) for label, block in blocks.items()}
-    return x86.Program(new_blocks), align(8 * max(0, stack_locations_used - len(available_registers)))
+    return x86.Program(new_blocks), align(8 * stack_locations_used)
 
 
 ##################################################
@@ -423,7 +418,7 @@ def patch_instructions(inputs: Tuple[x86.Program, int]) -> Tuple[x86.Program, in
     program, stack_size = inputs
     blocks = program.blocks
     new_blocks = {label: pi_block(block) for label, block in blocks.items()}
-    return (x86.Program(new_blocks), stack_size)
+    return x86.Program(new_blocks), stack_size
 
 
 ##################################################
