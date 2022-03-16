@@ -14,15 +14,18 @@ import constants
 
 gensym_num = 0
 
+
 # Generates a new unique symbol
 def gensym(x):
     global gensym_num
     gensym_num = gensym_num + 1
     return f'{x}_{gensym_num}'
 
+
 # Returns the "simple" name of an object's type
 def name_of(op):
     return type(op).__name__
+
 
 ##################################################
 # typecheck
@@ -30,36 +33,36 @@ def name_of(op):
 
 TEnv = Dict[str, type]
 
+
 def typecheck(program: Module) -> Module:
     """
     Typechecks the input program; throws an error if the program is not well-typed.
     :param e: The Lif program to typecheck
     :return: The program, if it is well-typed
     """
-
+    
     prim_arg_types = {
-        '+':   [int, int],
+        '+': [int, int],
         'Not': [bool],
-        'Or':  [bool, bool],
-        'And':  [bool, bool],
-        'Gt':   [int, int],
-        'Gte':  [int, int],
-        'Lt':   [int, int],
-        'LtE':  [int, int],
+        'Or': [bool, bool],
+        'And': [bool, bool],
+        'Gt': [int, int],
+        'Gte': [int, int],
+        'Lt': [int, int],
+        'LtE': [int, int],
     }
-
+    
     prim_output_types = {
-        '+':   int,
+        '+': int,
         'Not': bool,
-        'Or':  bool,
-        'And':  bool,
-        'Gt':   bool,
-        'Gte':  bool,
-        'Lt':   bool,
-        'LtE':  bool,
+        'Or': bool,
+        'And': bool,
+        'Gt': bool,
+        'Gte': bool,
+        'Lt': bool,
+        'LtE': bool,
     }
-
-
+    
     pass
 
 
@@ -74,8 +77,56 @@ def rco(prog: Module) -> Module:
     :param prog: An Lvar program
     :return: An Lvar program with atomic operator arguments.
     """
-
-    pass
+    
+    def rco_stmts(stmts: List[stmt]) -> List[stmt]:
+        new_stmts = []
+        
+        for stmt in stmts:
+            bindings = {}
+            
+            match stmt:
+                case Assign([x], e1):
+                    new_e1 = rco_exp(e1, False, bindings)
+                    new_stmt = Assign([x], new_e1)
+                case Expr(Call(Name('print'), [e1])):
+                    new_e1 = rco_exp(e1, True, bindings)
+                    new_stmt = Expr(Call(Name('print'), [new_e1]))
+                case If(cond, then_stmts, else_stmts):
+                    new_cond = rco_exp(cond, False, bindings)
+                    new_then_stmts = rco_stmts(then_stmts)
+                    new_else_stmts = rco_stmts(else_stmts)
+                    new_stmt = If(new_cond, new_then_stmts, new_else_stmts)
+                case _:
+                    raise Exception('rco_stmt', stmt)
+            
+            # (1) add the new bindings created by rco_exp
+            new_stmts.extend([Assign([x], e) for x, e in bindings.items()])
+            # (2) add the compiled statement itself
+            new_stmts.append(new_stmt)
+        
+        return new_stmts
+    
+    def rco_exp(e: expr, atomic: bool, bindings: Dict[str, expr]) -> expr:
+        match e:
+            case Name(x):
+                return Name(x)
+            case Constant(i):
+                return Constant(i)
+            case BinOp(e1, op, e2):
+                new_e1 = rco_exp(e1, True, bindings)
+                new_e2 = rco_exp(e2, True, bindings)
+                new_e = BinOp(new_e1, op, new_e2)
+                
+                if atomic:
+                    new_v = Name(gensym('tmp'))
+                    bindings[new_v] = new_e
+                    return new_v
+                else:
+                    return new_e
+            case _:
+                raise Exception('rco_exp', e)
+    
+    return Module(rco_stmts(prog.body))
 
 
 ##################################################
@@ -88,10 +139,10 @@ def explicate_control(prog: Module) -> cif.CProgram:
     :param e: An Lif Expression
     :return: A Cif Program
     """
-
+    
     # the basic blocks of the program
     basic_blocks: Dict[str, List[cif.Stmt]] = {}
-
+    
     pass
 
 
@@ -105,19 +156,19 @@ def select_instructions(p: cif.CProgram) -> x86.Program:
     :param p: a Cif program
     :return: a pseudo-x86 program
     """
-
+    
     op_cc = {
         'Eq': 'e',
         'Gt': 'g',
         'Lt': 'l',
         'LtE': 'le',
     }
-
+    
     boolop_instrs = {
         'And': 'andq',
         'Or': 'orq',
     }
-
+    
     pass
 
 
@@ -135,7 +186,7 @@ def uncover_live(program: x86.Program) -> Tuple[x86.Program, Dict[str, List[Set[
     the program to a list of live-after sets for that label. The live-after
     sets are in the same order as the label's instructions.
     """
-
+    
     pass
 
 
@@ -150,37 +201,37 @@ class InterferenceGraph:
     nodes cannot share the same locations.
     """
     graph: DefaultDict[x86.Arg, Set[x86.Arg]]
-
+    
     def __init__(self):
         self.graph = defaultdict(lambda: set())
-
+    
     def add_edge(self, a: x86.Arg, b: x86.Arg):
         if a != b:
             self.graph[a].add(b)
             self.graph[b].add(a)
-
+    
     def neighbors(self, a: x86.Arg) -> Set[x86.Arg]:
         if a in self.graph:
             return self.graph[a]
         else:
             return set()
-
+    
     def __str__(self):
         pairs = set()
         for k in self.graph.keys():
             new_pairs = set((k, v) for v in self.graph[k])
             pairs = pairs.union(new_pairs)
-
+        
         for a, b in list(pairs):
             if (b, a) in pairs:
                 pairs.remove((a, b))
-
+        
         strings = [print_ast(a) + ' -- ' + print_ast(b) for a, b in pairs]
         return 'InterferenceGraph{\n ' + ',\n '.join(strings) + '\n}'
 
 
 def build_interference(inputs: Tuple[x86.Program, Dict[str, List[Set[x86.Var]]]]) -> \
-        Tuple[x86.Program, InterferenceGraph]:
+    Tuple[x86.Program, InterferenceGraph]:
     """
     Build the interference graph.
     :param inputs: A Tuple. The first element is a pseudo-x86 program. The
@@ -189,7 +240,7 @@ def build_interference(inputs: Tuple[x86.Program, Dict[str, List[Set[x86.Var]]]]
     :return: A Tuple. The first element is the same as the input program. The
     second is a completed interference graph.
     """
-
+    
     pass
 
 
@@ -203,7 +254,7 @@ Saturation = Set[Color]
 
 
 def allocate_registers(inputs: Tuple[x86.Program, InterferenceGraph]) -> \
-        Tuple[x86.Program, int]:
+    Tuple[x86.Program, int]:
     """
     Assigns homes to variables in the input program. Allocates registers and
     stack locations as needed, based on a graph-coloring register allocation
@@ -214,7 +265,7 @@ def allocate_registers(inputs: Tuple[x86.Program, InterferenceGraph]) -> \
     references). The second element is the number of bytes needed in stack
     locations.
     """
-
+    
     pass
 
 
@@ -230,7 +281,7 @@ def patch_instructions(inputs: Tuple[x86.Program, int]) -> Tuple[x86.Program, in
     :return: A Tuple. The first element is the patched x86 program. The second element is
     the stack space in bytes.
     """
-
+    
     pass
 
 
@@ -245,7 +296,7 @@ def print_x86(inputs: Tuple[x86.Program, int]) -> str:
     is the stack space in bytes.
     :return: A string, ready for gcc.
     """
-
+    
     pass
 
 
@@ -268,7 +319,7 @@ compiler_passes = {
 
 def run_compiler(s, logging=False):
     current_program = parse(s)
-
+    
     if logging == True:
         print()
         print('==================================================')
@@ -276,10 +327,10 @@ def run_compiler(s, logging=False):
         print('==================================================')
         print()
         print(print_ast(current_program))
-
+    
     for pass_name, pass_fn in compiler_passes.items():
         current_program = pass_fn(current_program)
-
+        
         if logging == True:
             print()
             print('==================================================')
@@ -287,7 +338,7 @@ def run_compiler(s, logging=False):
             print('==================================================')
             print()
             print(print_ast(current_program))
-
+    
     return current_program
 
 
@@ -298,15 +349,14 @@ if __name__ == '__main__':
         file_name = sys.argv[1]
         with open(file_name) as f:
             print(f'Compiling program {file_name}...')
-
+            
             try:
                 program = f.read()
                 x86_program = run_compiler(program, logging=True)
-
+                
                 with open(file_name + '.s', 'w') as output_file:
                     output_file.write(x86_program)
-
+            
             except:
                 print('Error during compilation! **************************************************')
                 traceback.print_exception(*sys.exc_info())
-
