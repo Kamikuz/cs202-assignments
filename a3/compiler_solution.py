@@ -512,12 +512,12 @@ conclusion:
 
 compiler_passes = {
     'remove complex opera*': rco,
-    'select instructions': select_instructions,
-    'uncover live': uncover_live,
-    'build interference': build_interference,
-    'allocate registers': allocate_registers,
-    'patch instructions': patch_instructions,
-    'print x86': print_x86
+    # 'select instructions': select_instructions,
+    # 'uncover live': uncover_live,
+    # 'build interference': build_interference,
+    # 'allocate registers': allocate_registers,
+    # 'patch instructions': patch_instructions,
+    # 'print x86': print_x86
 }
 
 
